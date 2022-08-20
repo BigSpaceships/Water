@@ -4,5 +4,8 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/VerletSim.unity
+    guid: 9bdc7fe4d09719d4fb3b9ab046f278cb
   m_configObjects: {}

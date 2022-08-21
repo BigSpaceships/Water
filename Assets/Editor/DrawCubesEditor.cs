@@ -7,6 +7,8 @@ namespace Editor {
         public override void OnInspectorGUI() {
             DrawDefaultInspector();
 
+            GUILayout.Space(6);
+            
             if (GUILayout.Button("ResetBuffers")) {
                 ((Verlet.DrawCubes)target).SetupParticles();
             }

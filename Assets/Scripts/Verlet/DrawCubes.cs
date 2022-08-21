@@ -8,39 +8,53 @@ using Random = UnityEngine.Random;
 namespace Verlet {
     [ExecuteAlways]
     public class DrawCubes : MonoBehaviour {
-        public int numberOfCubes;
-        public Mesh mesh;
-        public Material material;
-
-        public bool drawInEditMode;
-
-        [Range(0, 10)] public float gravity;
-        [Range(0, 1)] public float drag;
-
+        
+        [Header("Setup Settings")]
+        [SerializeField] private int numberOfCubes;
+        [SerializeField] private Mesh mesh;
+        [SerializeField] private Material material;
+        
+        [Space] 
+        [SerializeField] private SphereCollider sphereCollider;
+        
+        [Space]
         public float dropletScale = 10;
         public float sectionSize;
         public float SectionSize => sectionSize < dropletScale ? dropletScale : sectionSize;
+        
+        [SerializeField] private bool drawInEditMode;
 
+        [Header("Simulation Settings")]
+        [Range(0, 10)] public float gravity;
+        [Range(0, 1)] public float drag;
+        
+        [Space]
+        // [SerializeField] private float threshold; // Used for continuous collisions 
+        [SerializeField] private int subSteps = 2;
+        
+        private enum RenderTypes {
+            All,
+            AroundDisplay,
+            None
+        }
+        
+        [Header("Section Display")]
+        [SerializeField] private RenderTypes renderType;
+        [SerializeField] private GameObject sectionDisplay;
+        [SerializeField] private Color sectionColor = Color.white;
+        
         private List<List<Matrix4x4>> batches = new List<List<Matrix4x4>>();
 
         private List<Particle> waterDroplets = new List<Particle>();
 
         private List<Vector3Int> availableSections = new List<Vector3Int>();
 
-        private IDictionary<Vector3Int, List<Vector3Int>> adjacentSections =
+        private IDictionary<Vector3Int, List<Vector3Int>> adjacentSections = // TODO: use convoluted int index for arrays 
             new Dictionary<Vector3Int, List<Vector3Int>>();
 
         private IDictionary<Vector3Int, List<int>> particlesInSection = new Dictionary<Vector3Int, List<int>>();
-
-        public SphereCollider sphereCollider;
-
-        public int subSteps = 2;
-
-        public float threshold;
         
         private bool _doSim;
-
-        public GameObject display;
 
         private void RenderBatches() {
             SetupBatches();
@@ -78,7 +92,7 @@ namespace Verlet {
                     for (int y = min.y; y <= max.y; y++) {
                         for (int z = min.z; z <= max.z; z++) {
                             var pos = new Vector3Int(x, y, z);
-                            // Debug.Log(pos);
+                            
                             if (Physics.CheckBox((Vector3) pos * SectionSize,
                                     new Vector3(SectionSize / 2, SectionSize / 2, SectionSize / 2),
                                     Quaternion.identity, LayerMask.GetMask("WaterAllowed")))
@@ -87,7 +101,6 @@ namespace Verlet {
                     }
                 }
             }
-
 
             availableSections = availableSections.Distinct().ToList();
 
@@ -130,7 +143,7 @@ namespace Verlet {
             particle.OldSection = particle.OldOldSection;
         }
 
-        public void SetupBatches() {
+        private void SetupBatches() {
             int addedMatrices = 0;
 
             batches.Clear();
@@ -234,8 +247,6 @@ namespace Verlet {
                 }
             }
 
-            // sphereCollider.isTrigger = true;
-            
             SetupSections();
             SetupParticles();
             StartCoroutine(StartSim());
@@ -272,12 +283,12 @@ namespace Verlet {
         }
 
         public static void CollideParticle(Particle droplet, SphereCollider collider) {
-            // collider.center = droplet.Position;
             collider.radius = droplet.radius;
 
-            var overlaps = Physics.OverlapSphere(droplet.Position, droplet.radius, LayerMask.GetMask("Default"));
+            var overlaps = new Collider[1];
+            Physics.OverlapSphereNonAlloc(droplet.Position, droplet.radius, overlaps, LayerMask.GetMask("Default"));
 
-            if (overlaps.Length == 0) {
+            if (overlaps[0] == null) {
                 return;
             }
 
@@ -285,27 +296,21 @@ namespace Verlet {
 
             var penetration = Physics.ComputePenetration(collider, droplet.Position, Quaternion.identity, overlap,
                 overlap.transform.position, overlap.transform.rotation, out Vector3 direction, out float distance);
-            
-            
-            if (penetration) {
-                // Debug.Log(distance);
 
+
+            if (penetration) {
                 droplet.Position = droplet.Position + direction * distance;
             }
-
-            // Debug.DrawRay(droplet.Position, direction * distance, Color.green);
         }
 
         public static void CollideParticleContinuously(Particle droplet, Vector3 targetPos, float threshold) {
-            
             var ray = new Ray(droplet.Position, targetPos - droplet.Position);
-        
+
             if (Physics.SphereCast(ray, droplet.radius, out var hit)) {
-            
                 var targetPosThatMoves = targetPos;
 
                 targetPosThatMoves -= ray.GetPoint(hit.distance);
-            
+
                 var worldToNormal = Quaternion.FromToRotation(hit.normal, Vector3.up);
                 var normalToWorld = Quaternion.Inverse(worldToNormal);
 
@@ -314,7 +319,7 @@ namespace Verlet {
                 targetPosThatMoves.y = 0;
 
                 targetPosThatMoves = normalToWorld * targetPosThatMoves;
-            
+
 
                 targetPosThatMoves += ray.GetPoint(hit.distance);
 
@@ -328,96 +333,43 @@ namespace Verlet {
             }
         }
 
-        private void CheckSpherePath(Particle droplet, Vector3 currentTargetPos) { // dammit too slow
-            var directionDistance = currentTargetPos - droplet.Position;
-
-            var ray = new Ray(droplet.Position, directionDistance.normalized);
-
-            // Debug.DrawRay(droplet.Position, directionDistance);
-            if (Physics.SphereCast(ray, dropletScale, out RaycastHit hit, directionDistance.magnitude,
-                    LayerMask.GetMask("Default"))) {
-
-                var targetPosThatMoves = currentTargetPos;
-
-                targetPosThatMoves -= ray.GetPoint(hit.distance);
-
-                var worldToNormal = Quaternion.FromToRotation(hit.normal, Vector3.up);
-                var normalToWorld = Quaternion.Inverse(worldToNormal);
-
-                targetPosThatMoves = worldToNormal * targetPosThatMoves;
-
-                targetPosThatMoves.y = 0;
-
-                targetPosThatMoves = normalToWorld * targetPosThatMoves;
-
-                targetPosThatMoves += ray.GetPoint(hit.distance);
-                
-                var rayDirection = targetPosThatMoves - currentTargetPos;
-                var rayToGoBackAlong = new Ray(currentTargetPos, rayDirection);
-
-                var distance = rayDirection.magnitude;
-
-                targetPosThatMoves = rayToGoBackAlong.GetPoint(distance + threshold);
-                
-                // var newRay = new Ray(hit.point, (targetPosThatMoves - hit.point).normalized);
-                // if (Physics.SphereCast(newRay, dropletScale, (targetPosThatMoves - hit.point).magnitude)) {
-                    // droplet.Position = hit.point;
-                    // CheckSpherePath(droplet, targetPosThatMoves);
-                // }
-                // else {
-                    droplet.Position = targetPosThatMoves;
-
-                    // Debug.Log(Physics.CheckSphere(droplet.Position, dropletScale));
-                    
-                    return;
-                // }
-
-                // var oldPos = droplet.Position;
-                // CheckSpherePath(droplet, currentTargetPos);
-
-                // return;
-            }
-
-            droplet.Position = currentTargetPos;
-        }
-
-        public List<Vector3Int> GetAdjacentSections(Vector3Int section) {
+        private List<Vector3Int> GetAdjacentSections(Vector3Int section) {
             List<Vector3Int> adjSectionsToCheck = new List<Vector3Int> {
-                new Vector3Int(section.x - 1, section.y - 1, section.z - 1),
-                new Vector3Int(section.x - 1, section.y - 1, section.z - 0),
-                new Vector3Int(section.x - 1, section.y - 1, section.z + 1),
+                new(section.x - 1, section.y - 1, section.z - 1),
+                new(section.x - 1, section.y - 1, section.z - 0),
+                new(section.x - 1, section.y - 1, section.z + 1),
 
-                new Vector3Int(section.x - 1, section.y - 0, section.z - 1),
-                new Vector3Int(section.x - 1, section.y - 0, section.z - 0),
-                new Vector3Int(section.x - 1, section.y - 0, section.z + 1),
+                new(section.x - 1, section.y - 0, section.z - 1),
+                new(section.x - 1, section.y - 0, section.z - 0),
+                new(section.x - 1, section.y - 0, section.z + 1),
 
-                new Vector3Int(section.x - 1, section.y + 1, section.z - 1),
-                new Vector3Int(section.x - 1, section.y + 1, section.z + 0),
-                new Vector3Int(section.x - 1, section.y + 1, section.z + 1),
+                new(section.x - 1, section.y + 1, section.z - 1),
+                new(section.x - 1, section.y + 1, section.z + 0),
+                new(section.x - 1, section.y + 1, section.z + 1),
 
-                new Vector3Int(section.x - 0, section.y - 1, section.z - 1),
-                new Vector3Int(section.x - 0, section.y - 1, section.z - 0),
-                new Vector3Int(section.x - 0, section.y - 1, section.z + 1),
+                new(section.x - 0, section.y - 1, section.z - 1),
+                new(section.x - 0, section.y - 1, section.z - 0),
+                new(section.x - 0, section.y - 1, section.z + 1),
 
-                new Vector3Int(section.x - 0, section.y - 0, section.z - 1),
-                new Vector3Int(section.x - 0, section.y - 0, section.z - 0),
-                new Vector3Int(section.x - 0, section.y - 0, section.z + 1),
+                new(section.x - 0, section.y - 0, section.z - 1),
+                new(section.x - 0, section.y - 0, section.z - 0),
+                new(section.x - 0, section.y - 0, section.z + 1),
 
-                new Vector3Int(section.x - 0, section.y + 1, section.z - 1),
-                new Vector3Int(section.x - 0, section.y + 1, section.z + 0),
-                new Vector3Int(section.x - 0, section.y + 1, section.z + 1),
+                new(section.x - 0, section.y + 1, section.z - 1),
+                new(section.x - 0, section.y + 1, section.z + 0),
+                new(section.x - 0, section.y + 1, section.z + 1),
 
-                new Vector3Int(section.x + 1, section.y - 1, section.z - 1),
-                new Vector3Int(section.x + 1, section.y - 1, section.z - 0),
-                new Vector3Int(section.x + 1, section.y - 1, section.z + 1),
+                new(section.x + 1, section.y - 1, section.z - 1),
+                new(section.x + 1, section.y - 1, section.z - 0),
+                new(section.x + 1, section.y - 1, section.z + 1),
 
-                new Vector3Int(section.x + 1, section.y - 0, section.z - 1),
-                new Vector3Int(section.x + 1, section.y - 0, section.z - 0),
-                new Vector3Int(section.x + 1, section.y - 0, section.z + 1),
+                new(section.x + 1, section.y - 0, section.z - 1),
+                new(section.x + 1, section.y - 0, section.z - 0),
+                new(section.x + 1, section.y - 0, section.z + 1),
 
-                new Vector3Int(section.x + 1, section.y + 1, section.z - 1),
-                new Vector3Int(section.x + 1, section.y + 1, section.z + 0),
-                new Vector3Int(section.x + 1, section.y + 1, section.z + 1),
+                new(section.x + 1, section.y + 1, section.z - 1),
+                new(section.x + 1, section.y + 1, section.z + 0),
+                new(section.x + 1, section.y + 1, section.z + 1),
             };
 
             var adjSections = new List<Vector3Int>();
@@ -432,50 +384,54 @@ namespace Verlet {
         }
 
         private void OnDrawGizmos() {
-            foreach (var section in availableSections) {
-                // DrawSection(section);
+            if (renderType == RenderTypes.All) {
+                foreach (var section in availableSections) {
+                    DrawSection(section, sectionColor);
+                }
             }
-            
-            var x = Mathf.FloorToInt((display.transform.position.x + sectionSize / 2) / sectionSize);
-            var y = Mathf.FloorToInt((display.transform.position.y + sectionSize / 2) / sectionSize);
-            var z = Mathf.FloorToInt((display.transform.position.z + sectionSize / 2) / sectionSize);
 
-            if (!adjacentSections.ContainsKey(new Vector3Int(x, y, z))) return;
-            
-            foreach (var section in adjacentSections[new Vector3Int(x, y, z)]) {
-                // DrawSection(section);
+            if (sectionDisplay != null && renderType == RenderTypes.AroundDisplay) {
+                var x = Mathf.FloorToInt((sectionDisplay.transform.position.x + sectionSize / 2) / sectionSize);
+                var y = Mathf.FloorToInt((sectionDisplay.transform.position.y + sectionSize / 2) / sectionSize);
+                var z = Mathf.FloorToInt((sectionDisplay.transform.position.z + sectionSize / 2) / sectionSize);
+
+                if (!adjacentSections.ContainsKey(new Vector3Int(x, y, z))) return;
+
+                foreach (var section in adjacentSections[new Vector3Int(x, y, z)]) {
+                    DrawSection(section, sectionColor);
+                }
             }
         }
 
-        private void DrawSection(Vector3Int section) {
+        private void DrawSection(Vector3Int section, Color color) {
             var sectionPos = (Vector3) section * SectionSize;
 
             Debug.DrawLine(new Vector3(-SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos,
-                new Vector3(-SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos);
+                new Vector3(-SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos, color);
             Debug.DrawLine(new Vector3(-SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos,
-                new Vector3(SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos);
+                new Vector3(SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos, color);
             Debug.DrawLine(new Vector3(SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos,
-                new Vector3(SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos);
+                new Vector3(SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos, color);
             Debug.DrawLine(new Vector3(SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos,
-                new Vector3(-SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos);
+                new Vector3(-SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos, color);
 
             Debug.DrawLine(new Vector3(-SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos,
-                new Vector3(-SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos);
+                new Vector3(-SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos, color);
             Debug.DrawLine(new Vector3(-SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos,
-                new Vector3(-SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos);
+                new Vector3(-SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos, color);
             Debug.DrawLine(new Vector3(SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos,
-                new Vector3(SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos);
+                new Vector3(SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos, color);
             Debug.DrawLine(new Vector3(SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos,
-                new Vector3(SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos);
+                new Vector3(SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos, color);
 
             Debug.DrawLine(new Vector3(-SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos,
-                new Vector3(-SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos);
+                new Vector3(-SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos, color);
             Debug.DrawLine(new Vector3(-SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos,
-                new Vector3(SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos);
+                new Vector3(SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos, color);
             Debug.DrawLine(new Vector3(SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos,
-                new Vector3(SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos);
+                new Vector3(SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos, color);
             Debug.DrawLine(new Vector3(SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos,
-                new Vector3(-SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos);
+                new Vector3(-SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos, color);
         }
     }
 }

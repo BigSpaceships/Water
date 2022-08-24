@@ -67,6 +67,8 @@ namespace Verlet {
         }
 
         public void SetupSections() {
+            var particlesInSection = new Dictionary<Vector3Int, List<int>>();
+            
             var collidersWhereWaterCanGo = new List<Collider>();
 
             foreach (var objectTransform in FindObjectsOfType(typeof(Transform))) {
@@ -78,6 +80,9 @@ namespace Verlet {
 
             availableSections = new List<Vector3Int>();
 
+            var maxSection = new Vector3Int(int.MinValue, int.MinValue, int.MinValue);
+            var minSection = new Vector3Int(int.MaxValue, int.MaxValue, int.MaxValue);
+            
             foreach (var collider in collidersWhereWaterCanGo) {
                 var bounds = collider.bounds;
                 var min = new Vector3Int((int) Math.Truncate(bounds.min.x / SectionSize),
@@ -100,7 +105,14 @@ namespace Verlet {
                         }
                     }
                 }
+
+                maxSection = Vector3Int.Max(maxSection, max);
+                minSection = Vector3Int.Min(minSection, min);
             }
+
+            Util.MaxSections = maxSection;
+            Util.MinSections = minSection;
+            Debug.Log(minSection);
 
             availableSections = availableSections.Distinct().ToList();
 
@@ -241,11 +253,7 @@ namespace Verlet {
         private void Start() {
             _doSim = false;
 
-            if (sphereCollider == null) {
-                if (!TryGetComponent(out sphereCollider)) {
-                    sphereCollider = gameObject.AddComponent<SphereCollider>();
-                }
-            }
+            Util.SectionSize = SectionSize;
 
             SetupSections();
             SetupParticles();
@@ -386,52 +394,21 @@ namespace Verlet {
         private void OnDrawGizmos() {
             if (renderType == RenderTypes.All) {
                 foreach (var section in availableSections) {
-                    DrawSection(section, sectionColor);
+                    Util.DrawSection(section, sectionColor);
                 }
             }
 
             if (sectionDisplay != null && renderType == RenderTypes.AroundDisplay) {
-                var x = Mathf.FloorToInt((sectionDisplay.transform.position.x + sectionSize / 2) / sectionSize);
-                var y = Mathf.FloorToInt((sectionDisplay.transform.position.y + sectionSize / 2) / sectionSize);
-                var z = Mathf.FloorToInt((sectionDisplay.transform.position.z + sectionSize / 2) / sectionSize);
+                var section = Util.GetSection(sectionDisplay.transform.position);
 
-                if (!adjacentSections.ContainsKey(new Vector3Int(x, y, z))) return;
+                if (!adjacentSections.ContainsKey(section)) return;
 
-                foreach (var section in adjacentSections[new Vector3Int(x, y, z)]) {
-                    DrawSection(section, sectionColor);
+                Debug.Log(section - Util.MinSections);
+
+                foreach (var adjacentSection in adjacentSections[section]) {
+                    Util.DrawSection(adjacentSection, sectionColor);
                 }
             }
-        }
-
-        private void DrawSection(Vector3Int section, Color color) {
-            var sectionPos = (Vector3) section * SectionSize;
-
-            Debug.DrawLine(new Vector3(-SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos,
-                new Vector3(-SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos, color);
-            Debug.DrawLine(new Vector3(-SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos,
-                new Vector3(SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos, color);
-            Debug.DrawLine(new Vector3(SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos,
-                new Vector3(SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos, color);
-            Debug.DrawLine(new Vector3(SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos,
-                new Vector3(-SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos, color);
-
-            Debug.DrawLine(new Vector3(-SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos,
-                new Vector3(-SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos, color);
-            Debug.DrawLine(new Vector3(-SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos,
-                new Vector3(-SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos, color);
-            Debug.DrawLine(new Vector3(SectionSize / 2, -SectionSize / 2, SectionSize / 2) + sectionPos,
-                new Vector3(SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos, color);
-            Debug.DrawLine(new Vector3(SectionSize / 2, -SectionSize / 2, -SectionSize / 2) + sectionPos,
-                new Vector3(SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos, color);
-
-            Debug.DrawLine(new Vector3(-SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos,
-                new Vector3(-SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos, color);
-            Debug.DrawLine(new Vector3(-SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos,
-                new Vector3(SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos, color);
-            Debug.DrawLine(new Vector3(SectionSize / 2, SectionSize / 2, SectionSize / 2) + sectionPos,
-                new Vector3(SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos, color);
-            Debug.DrawLine(new Vector3(SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos,
-                new Vector3(-SectionSize / 2, SectionSize / 2, -SectionSize / 2) + sectionPos, color);
         }
     }
 }

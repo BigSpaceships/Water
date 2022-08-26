@@ -49,10 +49,11 @@ namespace Verlet {
 
         private List<Vector3Int> availableSections = new List<Vector3Int>();
 
-        private IDictionary<Vector3Int, List<Vector3Int>> adjacentSections = // TODO: use convoluted int index for arrays 
-            new Dictionary<Vector3Int, List<Vector3Int>>();
+        private int[,] _adjacentSections;
 
-        private IDictionary<Vector3Int, List<int>> particlesInSection = new Dictionary<Vector3Int, List<int>>();
+        private List<int>[] _particlesInSection;
+        
+        private List<Vector3Int>[] _sections;
         
         private bool _doSim;
 
@@ -67,8 +68,6 @@ namespace Verlet {
         }
 
         public void SetupSections() {
-            var particlesInSection = new Dictionary<Vector3Int, List<int>>();
-            
             var collidersWhereWaterCanGo = new List<Collider>();
 
             foreach (var objectTransform in FindObjectsOfType(typeof(Transform))) {
@@ -112,14 +111,33 @@ namespace Verlet {
 
             Util.MaxSections = maxSection;
             Util.MinSections = minSection;
-            Debug.Log(minSection);
 
             availableSections = availableSections.Distinct().ToList();
 
+            var adjacentSections = new Dictionary<Vector3Int, List<Vector3Int>>();
+            
             foreach (var section in availableSections) {
-                particlesInSection[section] = new List<int>();
                 adjacentSections[section] = GetAdjacentSections(section);
             }
+
+            _adjacentSections = new int[Util.NumberOfSections, 27];
+            
+            foreach (var (key, value) in adjacentSections) {
+                int sectionIndex = Util.GetIntSection(key);
+
+                for (int i = 0; i < 27; i++) {
+                    try {
+                        int sectionToAssign = i < value.Count ? Util.GetIntSection(value[i]) : -1;
+                        _adjacentSections[sectionIndex, i] = sectionToAssign;
+                    }
+                    catch (Exception e) {
+                        Debug.LogException(e);
+                    }
+                }
+            }
+
+            _particlesInSection = new List<int>[Util.NumberOfSections];
+            Array.Fill(_particlesInSection, new List<int>());
         }
 
         public void SetupParticles() {
@@ -128,7 +146,7 @@ namespace Verlet {
             var boxScale = transform.localScale;
 
             for (int i = 0; i < numberOfCubes; i++) {
-                var particle = new Particle(this,
+                var particle = new Particle(this,   
                     new Vector3(Random.value * boxScale.x - boxScale.x / 2,
                         Random.value * boxScale.y - boxScale.y / 2,
                         Random.value * boxScale.z - boxScale.z / 2)) {
@@ -139,18 +157,16 @@ namespace Verlet {
                 waterDroplets.Add(particle);
 
                 SetSection(particle);
+                particle.SectionInt = Util.GetIntSection(particle.Section);
             }
         }
 
         private void SetSection(Particle particle) {
-            if (!particlesInSection[particle.Section].Contains(particle.Index)) {
-                particlesInSection[particle.Section].Add(particle.Index);
+            if (!_particlesInSection[particle.SectionInt].Contains(particle.Index)) {
+                _particlesInSection[particle.SectionInt].Add(particle.Index);
             }
 
-            if (particlesInSection.ContainsKey(particle.OldSection)) {
-                if (particlesInSection[particle.OldSection].Contains(particle.Index))
-                    particlesInSection[particle.OldSection].Remove(particle.Index);
-            }
+            _particlesInSection[Util.GetIntSection(particle.OldSection)].Remove(particle.Index);
 
             particle.OldSection = particle.OldOldSection;
         }
@@ -163,6 +179,8 @@ namespace Verlet {
             batches.Add(new List<Matrix4x4>());
 
             foreach (var particle in waterDroplets) {
+                if (!particle.Active) continue;
+
                 if (addedMatrices >= 1000) {
                     batches.Add(new List<Matrix4x4>());
                     addedMatrices = 0;
@@ -182,6 +200,8 @@ namespace Verlet {
                 float subTime = Time.fixedDeltaTime / (1 * (float) subSteps);
 
                 foreach (var droplet in waterDroplets) {
+                    if (!droplet.Active) continue;
+                    
                     var oldPos = droplet.Position;
 
                     droplet.Position += droplet.Position - droplet.LastPosition;
@@ -189,10 +209,10 @@ namespace Verlet {
 
                     CollideWithWorldSphereCast(droplet, oldPos);
 
-                    droplet.inBounds = Physics.CheckSphere(droplet.Position, Single.Epsilon,
+                    droplet.InBounds = Physics.CheckSphere(droplet.Position, Single.Epsilon,
                         LayerMask.GetMask("WaterAllowed"));
 
-                    if (!droplet.inBounds)
+                    if (!droplet.Active)
                         continue;
 
                     // List<int> dropletsToCheck = new List<int>();
@@ -217,23 +237,6 @@ namespace Verlet {
                         SetSection(droplet);
 
                     droplet.LastPosition = oldPos;
-                }
-
-                var i = 0;
-                while (i < waterDroplets.Count) {
-                    if (waterDroplets[i].inBounds) {
-                        if (waterDroplets[i].Index != i) {
-                            particlesInSection[waterDroplets[i].Section].Remove(waterDroplets[i].Index);
-                            particlesInSection[waterDroplets[i].Section].Add(i);
-                            waterDroplets[i].Index = i;
-                        }
-
-                        i++;
-                        continue;
-                    }
-
-                    particlesInSection[waterDroplets[i].Section].Remove(waterDroplets[i].Index);
-                    waterDroplets.RemoveAt(i);
                 }
             }
         }
@@ -400,13 +403,18 @@ namespace Verlet {
 
             if (sectionDisplay != null && renderType == RenderTypes.AroundDisplay) {
                 var section = Util.GetSection(sectionDisplay.transform.position);
+                var sectionIndex = Util.GetIntSection(section);
+                
+                if (!Util.SectionExists(sectionIndex)) return;
 
-                if (!adjacentSections.ContainsKey(section)) return;
+                
+                for (int i = 0; i < 27; i++) {
+                    var indexOfSectionToDraw = _adjacentSections[sectionIndex, i];
 
-                Debug.Log(section - Util.MinSections);
-
-                foreach (var adjacentSection in adjacentSections[section]) {
-                    Util.DrawSection(adjacentSection, sectionColor);
+                    if (indexOfSectionToDraw == -1) {
+                        continue;
+                    }
+                    Util.DrawSection(Util.GetVector3IntSection(indexOfSectionToDraw), sectionColor);
                 }
             }
         }

@@ -10,9 +10,12 @@ namespace Verlet {
         public Vector3Int Section;
         public Vector3Int OldSection;
         public Vector3Int OldOldSection;
+        public int SectionInt;
         public int Index;
 
-        public bool inBounds;
+        public bool InBounds = true;
+
+        public bool Active => InBounds;
 
         public float radius;
 
@@ -48,6 +51,10 @@ namespace Verlet {
             var changed = OldSection != Section;
 
             OldOldSection = Section;
+
+            if (changed) {
+                SectionInt = Util.GetIntSection(Section);
+            }
 
             return changed;
         }

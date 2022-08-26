@@ -150,14 +150,14 @@ namespace Verlet {
                     new Vector3(Random.value * boxScale.x - boxScale.x / 2,
                         Random.value * boxScale.y - boxScale.y / 2,
                         Random.value * boxScale.z - boxScale.z / 2)) {
-                    Index = waterDroplets.Count - 1,
+                    Index = waterDroplets.Count,
                     radius = dropletScale
                 };
 
                 waterDroplets.Add(particle);
+                particle.SectionInt = Util.GetIntSection(particle.Section);
 
                 SetSection(particle);
-                particle.SectionInt = Util.GetIntSection(particle.Section);
             }
         }
 
@@ -215,6 +215,15 @@ namespace Verlet {
                     if (!droplet.Active)
                         continue;
 
+                    var dropletsToCheck = new List<int>();
+
+                    for (int i = 0; i < 27; i++) {
+                        var section = _adjacentSections[droplet.SectionInt, i];
+                        if (section == -1) continue;
+                        
+                        dropletsToCheck.AddRange(_particlesInSection[section]);
+                    }
+
                     // List<int> dropletsToCheck = new List<int>();
 
                     // var sectionsToCheck = adjacentSections[droplet.Section];
@@ -231,7 +240,7 @@ namespace Verlet {
 
                     // Debug.Log(dropletsToCheck.Aggregate("", (s, i1) => s + ", " + i1));
 
-                    // CollideWithOtherDroplets(droplet, dropletsToCheck); // TODO: Only thing that might not work rn (Yep doesn't work)
+                    CollideWithOtherDroplets(droplet, dropletsToCheck); // TODO: Only thing that might not work rn (Yep doesn't work)
 
                     if (droplet.UpdateSection())
                         SetSection(droplet);

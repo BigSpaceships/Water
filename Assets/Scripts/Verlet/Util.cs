@@ -6,7 +6,8 @@ namespace Verlet {
         public static Vector3Int MaxSections;
         public static Vector3Int MinSections;
         public static Vector3Int TotalSections => MaxSections - MinSections;
-        public static int NumberOfSections => (TotalSections.x + 1) * (TotalSections.y + 1) * (TotalSections.z + 1);
+        public static Vector3Int TotalSectionsAndOne => TotalSections + Vector3Int.one;
+        public static int NumberOfSections => TotalSectionsAndOne.x * TotalSectionsAndOne.y * TotalSectionsAndOne.z;
         public static float SectionSize;
         
         public static void DrawSection(Vector3Int section, Color color) {
@@ -41,13 +42,17 @@ namespace Verlet {
         }
 
         public static Vector3Int GetVector3IntSection(int section) {
-            return new Vector3Int(Mathf.FloorToInt(section / (float) (TotalSections.y * TotalSections.z)),
-                Mathf.FloorToInt(section / (float) TotalSections.z) % TotalSections.x , section % TotalSections.x % TotalSections.y) + MinSections;
+            var x = Mathf.FloorToInt(section / TotalSectionsAndOne.x) % TotalSectionsAndOne.x;
+            var y = Mathf.FloorToInt(section / (TotalSectionsAndOne.x * TotalSectionsAndOne.z));
+            var z = section % TotalSectionsAndOne.z;
+            // Debug.Log(section);
+            
+            return new Vector3Int(x, y, z) + MinSections;
         }
 
         public static int GetIntSection(Vector3Int section) {
             section -= MinSections;
-            return section.x * TotalSections.y * TotalSections.z + section.y * TotalSections.z + section.z;
+            return section.x * TotalSectionsAndOne.z + section.y * TotalSectionsAndOne.z * TotalSectionsAndOne.x + section.z;
         }
 
         public static Vector3Int GetSection(Vector3 pos) {

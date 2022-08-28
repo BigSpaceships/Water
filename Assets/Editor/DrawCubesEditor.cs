@@ -9,8 +9,8 @@ namespace Editor {
 
             GUILayout.Space(6);
             
-            if (GUILayout.Button("ResetBuffers")) {
-                ((Verlet.DrawCubes)target).SetupParticles();
+            if (GUILayout.Button("Reload values")) {
+                ((Verlet.DrawCubes)target).Start();
             }
         }
     }

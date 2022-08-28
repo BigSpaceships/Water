@@ -34,8 +34,9 @@ namespace Verlet {
         
         private enum RenderTypes {
             All,
+            AllWithDisplayHighlighted,
             AroundDisplay,
-            None
+            None,
         }
         
         [Header("Section Display")]
@@ -78,9 +79,6 @@ namespace Verlet {
             }
 
             availableSections = new List<Vector3Int>();
-
-            var maxSection = new Vector3Int(int.MinValue, int.MinValue, int.MinValue);
-            var minSection = new Vector3Int(int.MaxValue, int.MaxValue, int.MaxValue);
             
             foreach (var collider in collidersWhereWaterCanGo) {
                 var bounds = collider.bounds;
@@ -104,15 +102,15 @@ namespace Verlet {
                         }
                     }
                 }
-
-                maxSection = Vector3Int.Max(maxSection, max);
-                minSection = Vector3Int.Min(minSection, min);
+                
+                // maxSection = Vector3Int.Max(maxSection, max);
+                // minSection = Vector3Int.Min(minSection, min);
             }
 
-            Util.MaxSections = maxSection;
-            Util.MinSections = minSection;
-
             availableSections = availableSections.Distinct().ToList();
+
+            Util.MinSections = availableSections.Aggregate(new Vector3Int(int.MaxValue, int.MaxValue, int.MaxValue), Vector3Int.Min);
+            Util.MaxSections = availableSections.Aggregate(new Vector3Int(int.MinValue, int.MinValue, int.MinValue), Vector3Int.Max);;
 
             var adjacentSections = new Dictionary<Vector3Int, List<Vector3Int>>();
             
@@ -166,7 +164,10 @@ namespace Verlet {
                 _particlesInSection[particle.SectionInt].Add(particle.Index);
             }
 
-            _particlesInSection[Util.GetIntSection(particle.OldSection)].Remove(particle.Index);
+            if (particle.SectionChanged) {
+                _particlesInSection[Util.GetIntSection(particle.OldSection)].Remove(particle.Index);
+                particle.SectionChanged = false;
+            }
 
             particle.OldSection = particle.OldOldSection;
         }
@@ -223,6 +224,11 @@ namespace Verlet {
                         
                         dropletsToCheck.AddRange(_particlesInSection[section]);
                     }
+                    
+                    if (dropletsToCheck.Count != 0) {
+                        Debug.Log(dropletsToCheck.Count);
+                    }
+                    
 
                     // List<int> dropletsToCheck = new List<int>();
 
@@ -262,19 +268,20 @@ namespace Verlet {
             }
         }
 
-        private void Start() {
+        public void Start() {
             _doSim = false;
 
             Util.SectionSize = SectionSize;
 
             SetupSections();
-            SetupParticles();
+            // SetupParticles();
             StartCoroutine(StartSim());
         }
 
         IEnumerator StartSim() {
             yield return new WaitForSeconds(1);
             _doSim = true;
+            // Debug.Break();
         }
 
         public void CollideWithOtherDroplets(Particle droplet, List<int> dropletsToCheck) {
@@ -305,22 +312,29 @@ namespace Verlet {
         public static void CollideParticle(Particle droplet, SphereCollider collider) {
             collider.radius = droplet.radius;
 
-            var overlaps = new Collider[1];
+            var overlaps = new Collider[16];
             Physics.OverlapSphereNonAlloc(droplet.Position, droplet.radius, overlaps, LayerMask.GetMask("Default"));
+            
+            var distances = new List<Vector3>();
+            
+            foreach (var overlap in overlaps) {
+                if (overlap == null) {
+                    break;
+                }
+                
+                var penetration = Physics.ComputePenetration(collider, droplet.Position, Quaternion.identity, overlap,
+                    overlap.transform.position, overlap.transform.rotation, out Vector3 direction, out float distance);
 
-            if (overlaps[0] == null) {
-                return;
+                if (penetration) {
+                    distances.Add(direction * distance);
+                }
             }
 
-            var overlap = overlaps[0];
-
-            var penetration = Physics.ComputePenetration(collider, droplet.Position, Quaternion.identity, overlap,
-                overlap.transform.position, overlap.transform.rotation, out Vector3 direction, out float distance);
-
-
-            if (penetration) {
-                droplet.Position = droplet.Position + direction * distance;
+            foreach (var vector3 in distances) {
+                // Debug.DrawRay(droplet.Position, vector3, Color.yellow);
+                droplet.Position += vector3;
             }
+
         }
 
         public static void CollideParticleContinuously(Particle droplet, Vector3 targetPos, float threshold) {
@@ -404,27 +418,50 @@ namespace Verlet {
         }
 
         private void OnDrawGizmos() {
-            if (renderType == RenderTypes.All) {
-                foreach (var section in availableSections) {
-                    Util.DrawSection(section, sectionColor);
-                }
-            }
-
-            if (sectionDisplay != null && renderType == RenderTypes.AroundDisplay) {
-                var section = Util.GetSection(sectionDisplay.transform.position);
-                var sectionIndex = Util.GetIntSection(section);
-                
-                if (!Util.SectionExists(sectionIndex)) return;
-
-                
-                for (int i = 0; i < 27; i++) {
-                    var indexOfSectionToDraw = _adjacentSections[sectionIndex, i];
-
-                    if (indexOfSectionToDraw == -1) {
-                        continue;
+            switch (renderType) {
+                case RenderTypes.AllWithDisplayHighlighted:
+                    foreach (var section in availableSections) {
+                        Util.DrawSection(section, sectionColor);
                     }
-                    Util.DrawSection(Util.GetVector3IntSection(indexOfSectionToDraw), sectionColor);
-                }
+                    
+                    if (sectionDisplay != null) {
+                        var section = Util.GetSection(sectionDisplay.transform.position);
+                        var sectionIndex = Util.GetIntSection(section);
+
+                        Util.DrawSection(Util.GetVector3IntSection(sectionIndex), Color.red);
+                        
+                        // Debug.Log(sectionIndex);
+                    }
+                    
+                    break;
+                case RenderTypes.All:
+                    foreach (var section in availableSections) {
+                        Util.DrawSection(section, sectionColor);
+                    }
+
+                    break;
+                case RenderTypes.AroundDisplay:
+                    if (sectionDisplay != null) {
+                        var section = Util.GetSection(sectionDisplay.transform.position);
+                        var sectionIndex = Util.GetIntSection(section);
+
+                        if (!Util.SectionExists(sectionIndex)) return;
+
+                        // Debug.Log(section - Util.MinSections);
+
+                        for (int i = 0; i < 27; i++) {
+                            var indexOfSectionToDraw = _adjacentSections[sectionIndex, i];
+
+                            if (indexOfSectionToDraw == -1) {
+                                continue;
+                            }
+                            Util.DrawSection(Util.GetVector3IntSection(indexOfSectionToDraw), sectionColor);
+                        }
+
+                        Util.DrawSection(Util.GetVector3IntSection(sectionIndex), Color.red);
+                    }
+                    
+                    break;
             }
         }
     }

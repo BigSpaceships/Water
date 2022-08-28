@@ -15,6 +15,8 @@ namespace Verlet {
 
         public bool InBounds = true;
 
+        public bool SectionChanged;
+
         public bool Active => InBounds;
 
         public float radius;
@@ -54,6 +56,7 @@ namespace Verlet {
 
             if (changed) {
                 SectionInt = Util.GetIntSection(Section);
+                SectionChanged = true;
             }
 
             return changed;

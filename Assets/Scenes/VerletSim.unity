@@ -178,7 +178,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 163639010}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 3.2, y: 0.4, z: 0.4}
+  m_LocalPosition: {x: -2.4, y: 2.8, z: 0.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -324,9 +324,9 @@ MonoBehaviour:
   gravity: 3.74
   drag: 0.025
   subSteps: 3
-  renderType: 2
+  renderType: 3
   sectionDisplay: {fileID: 163639010}
-  sectionColor: {r: 0.27510193, g: 0.764151, b: 0.27033645, a: 1}
+  sectionColor: {r: 0.28974247, g: 1, b: 0, a: 1}
 --- !u!4 &604273116
 Transform:
   m_ObjectHideFlags: 0
@@ -336,7 +336,7 @@ Transform:
   m_GameObject: {fileID: 604273114}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 20.932692, y: 20.932692, z: 20.932692}
+  m_LocalScale: {x: 24, y: 24, z: 24}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -480,7 +480,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!65 &1319424171
 BoxCollider:
   m_ObjectHideFlags: 0

@@ -21,10 +21,12 @@ namespace Verlet {
 
         public float radius;
 
-        private DrawCubes drawer;
+        public DrawCubes Drawer;
 
         public Particle(DrawCubes drawer, Vector3 pos) : this(pos) {
-            this.drawer = drawer;
+            Drawer = drawer;
+
+            UpdateSection();
         }
 
         public Particle(Vector3 pos){
@@ -33,16 +35,13 @@ namespace Verlet {
             
             OldSection = Vector3Int.zero;
 
-            if (drawer != null) {
-                UpdateSection();
-            }
         }
 
         public Particle() : this(Vector3.zero) {
         }
 
         public bool UpdateSection() {
-            var sizeOfSection = drawer.SectionSize;
+            var sizeOfSection = Drawer.SectionSize;
 
             var x = Mathf.FloorToInt((Position.x + sizeOfSection / 2) / sizeOfSection);
             var y = Mathf.FloorToInt((Position.y + sizeOfSection / 2) / sizeOfSection);

@@ -102,9 +102,6 @@ namespace Verlet {
                         }
                     }
                 }
-                
-                // maxSection = Vector3Int.Max(maxSection, max);
-                // minSection = Vector3Int.Min(minSection, min);
             }
 
             availableSections = availableSections.Distinct().ToList();
@@ -135,7 +132,9 @@ namespace Verlet {
             }
 
             _particlesInSection = new List<int>[Util.NumberOfSections];
-            Array.Fill(_particlesInSection, new List<int>());
+            for (int i = 0; i < (_particlesInSection.Length); i++) {
+                _particlesInSection[i] = new List<int>();
+            }
         }
 
         public void SetupParticles() {
@@ -149,7 +148,8 @@ namespace Verlet {
                         Random.value * boxScale.y - boxScale.y / 2,
                         Random.value * boxScale.z - boxScale.z / 2)) {
                     Index = waterDroplets.Count,
-                    radius = dropletScale
+                    radius = dropletScale,
+                    Drawer = this,
                 };
 
                 waterDroplets.Add(particle);
@@ -160,13 +160,13 @@ namespace Verlet {
         }
 
         private void SetSection(Particle particle) {
-            if (!_particlesInSection[particle.SectionInt].Contains(particle.Index)) {
-                _particlesInSection[particle.SectionInt].Add(particle.Index);
-            }
-
             if (particle.SectionChanged) {
                 _particlesInSection[Util.GetIntSection(particle.OldSection)].Remove(particle.Index);
                 particle.SectionChanged = false;
+            }
+            
+            if (!_particlesInSection[particle.SectionInt].Contains(particle.Index)) {
+                _particlesInSection[particle.SectionInt].Add(particle.Index);
             }
 
             particle.OldSection = particle.OldOldSection;
@@ -196,7 +196,6 @@ namespace Verlet {
         }
 
         private void UpdateWater() {
-            // TODO: Redo sections
             for (int subStep = 0; subStep < subSteps; subStep++) {
                 float subTime = Time.fixedDeltaTime / (1 * (float) subSteps);
 
@@ -223,10 +222,6 @@ namespace Verlet {
                         if (section == -1) continue;
                         
                         dropletsToCheck.AddRange(_particlesInSection[section]);
-                    }
-                    
-                    if (dropletsToCheck.Count != 0) {
-                        Debug.Log(dropletsToCheck.Count);
                     }
                     
 
@@ -274,7 +269,7 @@ namespace Verlet {
             Util.SectionSize = SectionSize;
 
             SetupSections();
-            // SetupParticles();
+            SetupParticles();
             StartCoroutine(StartSim());
         }
 
@@ -429,8 +424,6 @@ namespace Verlet {
                         var sectionIndex = Util.GetIntSection(section);
 
                         Util.DrawSection(Util.GetVector3IntSection(sectionIndex), Color.red);
-                        
-                        // Debug.Log(sectionIndex);
                     }
                     
                     break;
@@ -446,8 +439,6 @@ namespace Verlet {
                         var sectionIndex = Util.GetIntSection(section);
 
                         if (!Util.SectionExists(sectionIndex)) return;
-
-                        // Debug.Log(section - Util.MinSections);
 
                         for (int i = 0; i < 27; i++) {
                             var indexOfSectionToDraw = _adjacentSections[sectionIndex, i];

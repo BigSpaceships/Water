@@ -241,7 +241,7 @@ namespace Verlet {
 
                     // Debug.Log(dropletsToCheck.Aggregate("", (s, i1) => s + ", " + i1));
 
-                    CollideWithOtherDroplets(droplet, dropletsToCheck); // TODO: Only thing that might not work rn (Yep doesn't work)
+                    CollideWithOtherDroplets(droplet, dropletsToCheck);
 
                     if (droplet.UpdateSection())
                         SetSection(droplet);

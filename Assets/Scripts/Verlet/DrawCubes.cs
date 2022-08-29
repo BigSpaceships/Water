@@ -68,7 +68,7 @@ namespace Verlet {
             }
         }
 
-        public void SetupSections() {
+        private void SetupSections() {
             var collidersWhereWaterCanGo = new List<Collider>();
 
             foreach (var objectTransform in FindObjectsOfType(typeof(Transform))) {
@@ -137,7 +137,7 @@ namespace Verlet {
             }
         }
 
-        public void SetupParticles() {
+        private void SetupParticles() {
             waterDroplets.Clear();
 
             var boxScale = transform.localScale;
@@ -152,23 +152,9 @@ namespace Verlet {
                 };
 
                 waterDroplets.Add(particle);
-                particle.SectionInt = Util.GetIntSection(particle.Section);
 
-                SetSection(particle);
-            }
-        }
-
-        private void SetSection(Particle particle) {
-            if (particle.SectionChanged) {
-                _particlesInSection[Util.GetIntSection(particle.OldSection)].Remove(particle.Index);
-                particle.SectionChanged = false;
-            }
-            
-            if (!_particlesInSection[particle.SectionInt].Contains(particle.Index)) {
                 _particlesInSection[particle.SectionInt].Add(particle.Index);
             }
-
-            particle.OldSection = particle.OldOldSection;
         }
 
         private void SetupBatches() {
@@ -231,13 +217,9 @@ namespace Verlet {
                     var newSectionInt = Util.GetIntSection(newSection);
 
                     if (newSectionInt != droplet.SectionInt) {
-                        droplet.SectionChanged = true;
-                        droplet.OldOldSection = newSection;
-
-                        droplet.Section = newSection;
+                        _particlesInSection[droplet.SectionInt].Remove(droplet.Index);
+                        _particlesInSection[newSectionInt].Add(droplet.Index);
                         droplet.SectionInt = newSectionInt;
-                        
-                        SetSection(droplet);
                     }
 
                     droplet.LastPosition = oldPos;

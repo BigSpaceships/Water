@@ -149,7 +149,6 @@ namespace Verlet {
                         Random.value * boxScale.z - boxScale.z / 2)) {
                     Index = waterDroplets.Count,
                     radius = dropletScale,
-                    Drawer = this,
                 };
 
                 waterDroplets.Add(particle);
@@ -223,28 +222,23 @@ namespace Verlet {
                         
                         dropletsToCheck.AddRange(_particlesInSection[section]);
                     }
-                    
-
-                    // List<int> dropletsToCheck = new List<int>();
-
-                    // var sectionsToCheck = adjacentSections[droplet.Section];
-                    //
-                    // foreach (var section in sectionsToCheck) {
-                    //     // this doesn't work 
-                    //     if (!particlesInSection.ContainsKey(section)) {
-                    //         Debug.Log(section);
-                    //     }
-                    //     else {
-                    //         dropletsToCheck.AddRange(particlesInSection[section]);
-                    //     }
-                    // }
 
                     // Debug.Log(dropletsToCheck.Aggregate("", (s, i1) => s + ", " + i1));
 
                     CollideWithOtherDroplets(droplet, dropletsToCheck);
 
-                    if (droplet.UpdateSection())
+                    var newSection = Util.GetSection(droplet.Position);
+                    var newSectionInt = Util.GetIntSection(newSection);
+
+                    if (newSectionInt != droplet.SectionInt) {
+                        droplet.SectionChanged = true;
+                        droplet.OldOldSection = newSection;
+
+                        droplet.Section = newSection;
+                        droplet.SectionInt = newSectionInt;
+                        
                         SetSection(droplet);
+                    }
 
                     droplet.LastPosition = oldPos;
                 }

@@ -47,6 +47,7 @@ namespace Verlet {
         private List<List<Matrix4x4>> batches = new List<List<Matrix4x4>>();
 
         private List<Particle> waterDroplets = new List<Particle>();
+        // private List<ParticleStruct> _waterDroplets = new List<ParticleStruct>();
 
         private List<Vector3Int> availableSections = new List<Vector3Int>();
 
@@ -148,7 +149,7 @@ namespace Verlet {
                         Random.value * boxScale.y - boxScale.y / 2,
                         Random.value * boxScale.z - boxScale.z / 2)) {
                     Index = waterDroplets.Count,
-                    radius = dropletScale,
+                    Radius = dropletScale,
                 };
 
                 waterDroplets.Add(particle);
@@ -281,10 +282,10 @@ namespace Verlet {
         }
 
         public static void CollideParticle(Particle droplet, SphereCollider collider) {
-            collider.radius = droplet.radius;
+            collider.radius = droplet.Radius;
 
             var overlaps = new Collider[16];
-            Physics.OverlapSphereNonAlloc(droplet.Position, droplet.radius, overlaps, LayerMask.GetMask("Default"));
+            Physics.OverlapSphereNonAlloc(droplet.Position, droplet.Radius, overlaps, LayerMask.GetMask("Default"));
             
             var distances = new List<Vector3>();
             
@@ -311,7 +312,7 @@ namespace Verlet {
         public static void CollideParticleContinuously(Particle droplet, Vector3 targetPos, float threshold) {
             var ray = new Ray(droplet.Position, targetPos - droplet.Position);
 
-            if (Physics.SphereCast(ray, droplet.radius, out var hit)) {
+            if (Physics.SphereCast(ray, droplet.Radius, out var hit)) {
                 var targetPosThatMoves = targetPos;
 
                 targetPosThatMoves -= ray.GetPoint(hit.distance);

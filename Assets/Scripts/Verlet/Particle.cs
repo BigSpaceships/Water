@@ -12,11 +12,9 @@ namespace Verlet {
 
         public bool InBounds = true;
 
-        public bool SectionChanged;
-
         public bool Active => InBounds;
 
-        public float radius;
+        public float Radius;
 
         public Particle(DrawCubes drawer, Vector3 pos) : this(pos) {
             SectionInt = Util.GetIntSection(Util.GetSection(Position));
@@ -29,5 +27,18 @@ namespace Verlet {
 
         public Particle() : this(Vector3.zero) {
         }
+    }
+
+    public struct ParticleStruct {
+        public Vector3 Position;
+        public Vector3 LastPosition;
+
+        public int Section;
+        public int Index;
+
+        public float Radius;
+
+        public bool InBounds;
+        public bool Active => InBounds;
     }
 }

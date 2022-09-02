@@ -11,7 +11,7 @@ namespace Verlet {
         private Particle droplet;
 
         private void Start() {
-            droplet = new Particle {radius = display.transform.localScale.x / 2};
+            droplet = new Particle {Radius = display.transform.localScale.x / 2};
         }
 
         private void Update() {

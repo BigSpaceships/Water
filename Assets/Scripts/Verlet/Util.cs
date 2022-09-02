@@ -70,5 +70,27 @@ namespace Verlet {
         public static bool SectionExists(int section) {
             return section >= 0 && section <= NumberOfSections;
         }
+
+        public static ParticleStruct GetParticleStruct(Particle particle) {
+            return new ParticleStruct() {
+                InBounds = particle.InBounds,
+                Index = particle.Index,
+                Position = particle.Position,
+                LastPosition = particle.LastPosition,
+                Section = particle.SectionInt,
+                Radius = particle.Radius,
+            };
+        }
+
+        public static Particle GetParticle(ParticleStruct particleStruct) {
+            return new Particle() {
+                InBounds = particleStruct.InBounds,
+                Index = particleStruct.Index,
+                LastPosition = particleStruct.LastPosition,
+                Position = particleStruct.Position,
+                Radius = particleStruct.Radius,
+                SectionInt = particleStruct.Index,
+            };
+        }
     }
 }
